@@ -7,6 +7,7 @@
   import inputStore from '$lib/stores/InputStore.svelte'
   import { onDestroy, onMount } from 'svelte'
   import { betterRaycaster } from '$lib/helpers/betterRaycaster.svelte'
+  import outlineStore from '$lib/stores/outline/OutlineStore.svelte'
 
   onMount(() => inputStore.start())
   onDestroy(() => inputStore.stop())

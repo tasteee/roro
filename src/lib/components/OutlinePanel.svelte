@@ -6,6 +6,7 @@
   import { cube } from '$lib/data/shapes'
   import { Button, Text } from 'kampsy-ui'
   import SheSpacer from './SheSpacer.svelte'
+  import project from '$lib/helpers/project'
 
   const topLevelItems = $derived(outlineStore.getChildreByParentId(''))
 
@@ -74,12 +75,19 @@
         onclick={outlineStore.selectAll}>Select All</Button
       >
       <SheSpacer size="4px" />
-      <Button variant="secondary" size="tiny" aria-label="deselect all items">
+
+      <Button variant="secondary" size="tiny" aria-label="deselect all items" onclick={project.save}
+        >Save</Button
+      >
+      <Button variant="secondary" size="tiny" aria-label="deselect all items" onclick={project.load}
+        >Load</Button
+      >
+      <!-- <Button variant="secondary" size="tiny" aria-label="deselect all items">
         <Icon icon="mingcute:back-2-line" />
       </Button>
       <Button variant="secondary" size="tiny" aria-label="deselect all items">
         <Icon icon="mingcute:forward-2-line" />
-      </Button>
+      </Button> -->
     </div>
   </div>
 </Card>

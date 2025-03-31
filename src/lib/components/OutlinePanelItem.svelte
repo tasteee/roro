@@ -28,17 +28,19 @@
 
   const onArrowClick = (e: MouseEvent) => {
     e.stopPropagation()
-    outlineStore.toggleGroupOpen(item.id)
+    item.isOpen = !item.isOpen
   }
 
   const onLockClick = (e: MouseEvent) => {
     e.stopPropagation()
-    outlineStore.toggleItemLocked(item.id)
+    item.isLocked = !item.isLocked
+    outlineStore.toggleChildrenLocked(item.id, item.isLocked)
   }
 
   const onEyeClick = (e: MouseEvent) => {
     e.stopPropagation()
-    outlineStore.toggleItemVisible(item.id)
+    item.isVisible = !item.isVisible
+    outlineStore.toggleChildrenVisibility(item.id, item.isVisible)
   }
 
   const onSelect = (e: MouseEvent) => {
@@ -56,27 +58,17 @@
         // Select all items in the range that have the same parent
         const startIdx = Math.min(currentItemIndex, lastSelectedIndex)
         const endIdx = Math.max(currentItemIndex, lastSelectedIndex)
-
         outlineStore.clearSelection()
         for (let i = startIdx; i <= endIdx; i++) {
           if (outlineStore.items[i].parentId === item.parentId) {
             outlineStore.addToSelection(outlineStore.items[i].id)
           }
         }
-      } else {
-        outlineStore.selectItem(item.id)
-      }
-    } else if (e.ctrlKey || e.metaKey) {
-      // Add/remove from selection
-      if (isSelected) {
-        outlineStore.removeFromSelection(item.id)
-      } else {
-        outlineStore.addToSelection(item.id)
-      }
-    } else {
-      // Normal selection
-      outlineStore.selectItem(item.id)
-    }
+      } else outlineStore.selectItem(item.id)
+    } else if (e.ctrlKey) {
+      if (isSelected) outlineStore.removeFromSelection(item.id)
+      if (!isSelected) outlineStore.addToSelection(item.id)
+    } else outlineStore.selectItem(item.id)
   }
 
   $effect(() => {
@@ -107,7 +99,7 @@
   }
 
   const finishEditing = () => {
-    if (isEditing && nameInput?.value) outlineStore.renameItem(item.id, nameInput.value)
+    if (isEditing && nameInput?.value) item.name = nameInput.value
     isEditing = false
     inputStore.start()
   }

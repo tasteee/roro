@@ -1,22 +1,6 @@
 import u from '$lib/helpers/utilities'
 import throttle from 'just-throttle'
-
-const ARROW_KEYS = ['arrowup', 'arrowdown', 'arrowleft', 'arrowright']
-const MODIFIER_KEYS = ['shift', 'control', 'alt']
-const DIGIT_KEYS = [
-  'digit1',
-  'digit2',
-  'digit3',
-  'digit4',
-  'digit5',
-  'digit6',
-  'digit7',
-  'digit8',
-  'digit9',
-  'digit0'
-]
-const WASD_KEYS = ['w', 'a', 's', 'd']
-const ROTATOR_KEYS = ['q', 'e']
+import { KEYS } from '$lib/constants/keys'
 
 class InputStore {
   mouseX = $state(0)
@@ -30,59 +14,60 @@ class InputStore {
   mouseUpTime = 0
   wasLastClickLong = false
 
-  isPressedW = $derived.by(() => this.pressedKeys.includes('w'))
-  isPressedS = $derived.by(() => this.pressedKeys.includes('s'))
-  isPressedA = $derived.by(() => this.pressedKeys.includes('a'))
-  isPressedD = $derived.by(() => this.pressedKeys.includes('d'))
-  isPressedQ = $derived.by(() => this.pressedKeys.includes('q'))
-  isPressedE = $derived.by(() => this.pressedKeys.includes('e'))
-  isPressedV = $derived.by(() => this.pressedKeys.includes('v'))
+  isPressedW = $derived(this.pressedKeys.includes('w'))
+  isPressedS = $derived(this.pressedKeys.includes('s'))
+  isPressedA = $derived(this.pressedKeys.includes('a'))
+  isPressedD = $derived(this.pressedKeys.includes('d'))
+  isPressedQ = $derived(this.pressedKeys.includes('q'))
+  isPressedE = $derived(this.pressedKeys.includes('e'))
+  isPressedV = $derived(this.pressedKeys.includes('v'))
+  isPressedJ = $derived(this.pressedKeys.includes('j'))
 
-  isPressedSpace = $derived.by(() => this.pressedKeys.includes('space'))
-  isPressedShift = $derived.by(() => this.pressedKeys.includes('shift'))
-  isPressedControl = $derived.by(() => this.pressedKeys.includes('control'))
-  isPressedAlt = $derived.by(() => this.pressedKeys.includes('alt'))
-  isPressedCapsLock = $derived.by(() => this.pressedKeys.includes('capslock'))
-  isPressedDelete = $derived.by(() => this.pressedKeys.includes('delete'))
-  isPressedBackspace = $derived.by(() => this.pressedKeys.includes('backspace'))
-  isPressedEscape = $derived.by(() => this.pressedKeys.includes('escape'))
+  isPressedSpace = $derived(this.pressedKeys.includes('space'))
+  isPressedShift = $derived(this.pressedKeys.includes('shift'))
+  isPressedControl = $derived(this.pressedKeys.includes('control'))
+  isPressedAlt = $derived(this.pressedKeys.includes('alt'))
+  isPressedCapsLock = $derived(this.pressedKeys.includes('capslock'))
+  isPressedDelete = $derived(this.pressedKeys.includes('delete'))
+  isPressedBackspace = $derived(this.pressedKeys.includes('backspace'))
+  isPressedEscape = $derived(this.pressedKeys.includes('escape'))
 
-  isPressedArrowUp = $derived.by(() => this.pressedKeys.includes('arrowup'))
-  isPressedArrowDown = $derived.by(() => this.pressedKeys.includes('arrowdown'))
-  isPressedArrowLeft = $derived.by(() => this.pressedKeys.includes('arrowleft'))
-  isPressedArrowRight = $derived.by(() => this.pressedKeys.includes('arrowright'))
+  isPressedArrowUp = $derived(this.pressedKeys.includes('arrowup'))
+  isPressedArrowDown = $derived(this.pressedKeys.includes('arrowdown'))
+  isPressedArrowLeft = $derived(this.pressedKeys.includes('arrowleft'))
+  isPressedArrowRight = $derived(this.pressedKeys.includes('arrowright'))
 
-  isPressedDigit1 = $derived.by(() => this.pressedKeys.includes('1'))
-  isPressedDigit2 = $derived.by(() => this.pressedKeys.includes('2'))
-  isPressedDigit3 = $derived.by(() => this.pressedKeys.includes('3'))
-  isPressedDigit4 = $derived.by(() => this.pressedKeys.includes('4'))
-  isPressedDigit5 = $derived.by(() => this.pressedKeys.includes('5'))
-  isPressedDigit6 = $derived.by(() => this.pressedKeys.includes('6'))
-  isPressedDigit7 = $derived.by(() => this.pressedKeys.includes('7'))
-  isPressedDigit8 = $derived.by(() => this.pressedKeys.includes('8'))
-  isPressedDigit9 = $derived.by(() => this.pressedKeys.includes('9'))
-  isPressedDigit0 = $derived.by(() => this.pressedKeys.includes('0'))
+  isPressedDigit1 = $derived(this.pressedKeys.includes('1'))
+  isPressedDigit2 = $derived(this.pressedKeys.includes('2'))
+  isPressedDigit3 = $derived(this.pressedKeys.includes('3'))
+  isPressedDigit4 = $derived(this.pressedKeys.includes('4'))
+  isPressedDigit5 = $derived(this.pressedKeys.includes('5'))
+  isPressedDigit6 = $derived(this.pressedKeys.includes('6'))
+  isPressedDigit7 = $derived(this.pressedKeys.includes('7'))
+  isPressedDigit8 = $derived(this.pressedKeys.includes('8'))
+  isPressedDigit9 = $derived(this.pressedKeys.includes('9'))
+  isPressedDigit0 = $derived(this.pressedKeys.includes('0'))
 
-  isPressedF1 = $derived.by(() => this.pressedKeys.includes('f1'))
-  isPressedF2 = $derived.by(() => this.pressedKeys.includes('f2'))
-  isPressedF3 = $derived.by(() => this.pressedKeys.includes('f3'))
-  isPressedF4 = $derived.by(() => this.pressedKeys.includes('f4'))
-  isPressedF5 = $derived.by(() => this.pressedKeys.includes('f5'))
-  isPressedF6 = $derived.by(() => this.pressedKeys.includes('f6'))
-  isPressedF7 = $derived.by(() => this.pressedKeys.includes('f7'))
-  isPressedF8 = $derived.by(() => this.pressedKeys.includes('f8'))
-  isPressedF9 = $derived.by(() => this.pressedKeys.includes('f9'))
-  isPressedF10 = $derived.by(() => this.pressedKeys.includes('f10'))
-  isPressedF11 = $derived.by(() => this.pressedKeys.includes('f11'))
-  isPressedF12 = $derived.by(() => this.pressedKeys.includes('f12'))
-  isPressedTilde = $derived.by(() => this.pressedKeys.includes('`'))
+  isPressedF1 = $derived(this.pressedKeys.includes('f1'))
+  isPressedF2 = $derived(this.pressedKeys.includes('f2'))
+  isPressedF3 = $derived(this.pressedKeys.includes('f3'))
+  isPressedF4 = $derived(this.pressedKeys.includes('f4'))
+  isPressedF5 = $derived(this.pressedKeys.includes('f5'))
+  isPressedF6 = $derived(this.pressedKeys.includes('f6'))
+  isPressedF7 = $derived(this.pressedKeys.includes('f7'))
+  isPressedF8 = $derived(this.pressedKeys.includes('f8'))
+  isPressedF9 = $derived(this.pressedKeys.includes('f9'))
+  isPressedF10 = $derived(this.pressedKeys.includes('f10'))
+  isPressedF11 = $derived(this.pressedKeys.includes('f11'))
+  isPressedF12 = $derived(this.pressedKeys.includes('f12'))
+  isPressedTilde = $derived(this.pressedKeys.includes('`'))
   isPressedTab = $derived(this.pressedKeys.includes('tab'))
 
-  isArrowPressed = $derived.by(() => u.array.includesSome(this.pressedKeys, ARROW_KEYS))
-  isModifierPressed = $derived.by(() => u.array.includesSome(this.pressedKeys, MODIFIER_KEYS))
-  isDigitPressed = $derived.by(() => u.array.includesSome(this.pressedKeys, DIGIT_KEYS))
-  isWASDPressed = $derived.by(() => u.array.includesSome(this.pressedKeys, WASD_KEYS))
-  isRotatorPressed = $derived.by(() => u.array.includesSome(this.pressedKeys, ROTATOR_KEYS))
+  isArrowPressed = $derived(u.array.includesSome(this.pressedKeys, KEYS.ARROWS))
+  isModifierPressed = $derived(u.array.includesSome(this.pressedKeys, KEYS.MODIFIERS))
+  isDigitPressed = $derived(u.array.includesSome(this.pressedKeys, KEYS.DIGITS))
+  isWASDPressed = $derived(u.array.includesSome(this.pressedKeys, KEYS.WASD))
+  isRotatorPressed = $derived(u.array.includesSome(this.pressedKeys, KEYS.ROTATORS))
 
   handleKey = (isPressing: boolean) => (event: KeyboardEvent) => {
     event.preventDefault()
@@ -145,5 +130,3 @@ class InputStore {
 
 const inputStore = new InputStore()
 export default inputStore
-globalThis.inputStore = inputStore
-globalThis.getCurrentPressedKeys = () => $state.snapshot(inputStore.pressedKeys)

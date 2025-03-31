@@ -11,19 +11,10 @@
   import cameraStore from '$lib/stores/camera/CameraStore.svelte'
   import colors from '$lib/constants/colors'
   import { hoverRaycast } from '$lib/helpers/betterRaycaster.svelte'
+  import { onMount } from 'svelte'
 
   type PropsT = { id: string }
   const props: PropsT = $props()
-
-  const getCenteredGeometry = (points: Vector3[]) => {
-    const convexGeometry = new ConvexGeometry(points)
-    convexGeometry.computeBoundingBox()
-    const boundingBox = convexGeometry.boundingBox as Box3
-    const center = new Vector3()
-    boundingBox.getCenter(center)
-    convexGeometry.translate(-center.x, -center.y, -center.z)
-    return convexGeometry
-  }
 
   const item = $derived(outlineStore.getItemById(props.id))
   const outlineIndex = $derived(outlineStore.items.indexOf(item))
@@ -36,11 +27,18 @@
   let isHovering = $state(false)
 
   const shouldShowControls = $derived(isSelected && !item.isLocked && item.isVisible)
-  const geometry = $derived(getCenteredGeometry(item.points))
   const meshRef = $derived(groupMeshRef || objectMeshRef)
-  const position = $derived<XYZNumbers>([item.position.x, item.position.y, item.position.z])
-  const rotation = $derived<XYZNumbers>([item.rotation.x, item.rotation.y, item.rotation.z])
-  const scale = $derived<XYZNumbers>([item.scale.x, item.scale.y, item.scale.z])
+
+  onMount(() => {
+    outlineStore.meshes[item.id] = meshRef
+  })
+
+  // $effect(() => {
+  //   if (!meshRef) return
+  //   outlineStore.meshes[item.id] = meshRef
+  //   console.log(item.name)
+  //   $inspect(meshRef)
+  // })
 
   $effect(() => {
     if (!isHovering) return
@@ -67,8 +65,8 @@
   }
 
   const handlePointerDown = (event: MouseEvent) => {
-    event.stopPropagation()
-    inputStore.handleMouseDown()
+    // event.stopPropagation()
+    // inputStore.handleMouseDown()
   }
 
   const handlePointerUp = (event: MouseEvent) => {
@@ -95,12 +93,9 @@
   }
 
   const onTransform = () => {
-    const newPosition = [meshRef.position.x, meshRef.position.y, meshRef.position.z]
-    const newRotation = [meshRef.rotation.x, meshRef.rotation.y, meshRef.rotation.z]
-    const newScale = [meshRef.scale.x, meshRef.scale.y, meshRef.scale.z]
-    item.position = new Vector3(...newPosition)
-    item.rotation = new Vector3(...newRotation)
-    item.scale = new Vector3(...newScale)
+    item.position = [meshRef.position.x, meshRef.position.y, meshRef.position.z]
+    item.rotation = [meshRef.rotation.x, meshRef.rotation.y, meshRef.rotation.z]
+    item.scale = [meshRef.scale.x, meshRef.scale.y, meshRef.scale.z]
   }
 </script>
 
@@ -124,9 +119,11 @@
   {#if item.type === 'group'}
     <T.Group
       bind:ref={groupMeshRef}
-      {position}
-      {rotation}
-      {scale}
+      name={item.name}
+      uuid={item.id}
+      position={item.position as [number, number, number]}
+      rotation={item.rotation as [number, number, number]}
+      scale={item.scale as [number, number, number]}
       visible={item.isVisible}
       castShadow={item.isVisible}
       receiveShadow={item.isVisible}
@@ -138,14 +135,15 @@
     </T.Group>
   {/if}
 
-  {#if item.type === 'object' && geometry}
+  {#if item.type === 'object' && item.geometry}
     <T.Mesh
       bind:ref={objectMeshRef}
-      {geometry}
-      {position}
-      {rotation}
-      {scale}
       name={item.name}
+      uuid={item.id}
+      geometry={item.geometry as ConvexGeometry}
+      position={item.position as [number, number, number]}
+      rotation={item.rotation as [number, number, number]}
+      scale={item.scale as [number, number, number]}
       visible={item.isVisible}
       castShadow={item.isVisible}
       receiveShadow={item.isVisible}

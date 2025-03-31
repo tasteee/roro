@@ -1,4 +1,5 @@
-import { Vector3 } from 'three'
+import { BufferGeometry, Vector3 } from 'three'
+import type { ConvexGeometry } from 'three/examples/jsm/Addons.js'
 
 // A shape represents an object
 // that can be found by browsing
@@ -13,7 +14,7 @@ export type ShapeT = {
   authorId: string
   createdDate: number
   categories: string[]
-  points: number[][]
+  points: VectorArray3[]
 }
 
 // ObjectTs are instaciated ShapeTs
@@ -21,15 +22,15 @@ export type ShapeT = {
 // entities that can be manipulated inside
 // of the 3D workspace.
 export type ObjectT = {
-  type: 'object'
+  type: string
   id: string
   name: string
   shapeName: string
-  points: Vector3[]
-  position: Vector3
-  rotation: Vector3
-  scale: Vector3
-  pivotPosition: Vector3
+  geometry: ConvexGeometry | BufferGeometry
+  position: VectorArray3
+  rotation: VectorArray3
+  scale: VectorArray3
+  pivotPosition: VectorArray3
   parentId: string
   isVisible: boolean
   isLocked: boolean
@@ -40,15 +41,14 @@ export type ObjectT = {
 // together and maintain their relativity
 // to each other.
 export type GroupT = {
-  type: 'group'
+  type: string
   id: string
   name: string
   parentId: string
-  points: Vector3[]
-  position: Vector3
-  rotation: Vector3
-  scale: Vector3
-  pivotPosition: Vector3
+  position: VectorArray3
+  rotation: VectorArray3
+  scale: VectorArray3
+  pivotPosition: VectorArray3
   isVisible: boolean
   isLocked: boolean
   isOpen: boolean

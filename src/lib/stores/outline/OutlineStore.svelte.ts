@@ -1,50 +1,20 @@
-import { Vector3 } from 'three'
+import { Box3, Euler, Matrix4, Mesh, Quaternion, Vector3 } from 'three'
 import { v4 as uuid } from 'uuid'
-import type { GroupT, ObjectT, OutlineItemT, ShapeT } from '$lib/types'
-import type { TransformControlsMode } from 'three/examples/jsm/Addons.js'
+import * as THREE from 'three'
+import type { ObjectT, OutlineItemT, ShapeT } from '$lib/types'
+import store from 'store'
+
+import {
+  BufferGeometryUtils,
+  ConvexGeometry,
+  type TransformControlsMode
+} from 'three/examples/jsm/Addons.js'
+
 import throttle from 'just-throttle'
 import inputStore from '../InputStore.svelte'
-
-const createVectorFromPoint = (point: number[]) => {
-  return new Vector3(point[0], point[1], point[2])
-}
-
-const createShapePointsVectors = (target: number[][]) => {
-  return target.map(createVectorFromPoint)
-}
-
-const createObject = (shape: ShapeT): ObjectT => {
-  return {
-    type: 'object',
-    pivotPosition: new Vector3(0, 0, 0),
-    position: new Vector3(0, 0, 0),
-    rotation: new Vector3(0, 0, 0),
-    scale: new Vector3(1, 1, 1),
-    shapeName: shape.name,
-    points: createShapePointsVectors(shape.points),
-    name: shape.name,
-    id: uuid(),
-    isVisible: true,
-    isLocked: false,
-    parentId: ''
-  }
-}
-
-const createGroup = () => {
-  return {
-    type: 'group',
-    pivotPosition: new Vector3(0, 0, 0),
-    position: new Vector3(0, 0, 0),
-    rotation: new Vector3(0, 0, 0),
-    scale: new Vector3(1, 1, 1),
-    name: 'group',
-    id: uuid(),
-    isOpen: true,
-    isVisible: true,
-    isLocked: false,
-    parentId: ''
-  }
-}
+import { createObject, createGroup } from './create'
+import { saveProjectToJson } from './persistence'
+import superjson from 'superjson'
 
 class OutlineStore {
   items = $state<OutlineItemT[]>([])
@@ -56,17 +26,23 @@ class OutlineStore {
   isDragging = $state(false)
   hoveredItemId = $state('')
   isSelectingDisabled = $state(false)
+  meshes = {} as any
 
   snapAmount = $derived.by(() => {
-    if (!outlineStore.isSnappingEnabled) return null
+    if (!this.isSnappingEnabled) return null
     if (inputStore.isPressedShift && inputStore.isPressedControl) return 0.005
     if (inputStore.isPressedControl) return 0.01
     if (inputStore.isPressedShift) return 0.025
     return 0.1
   })
 
+  // TODO: Get these values fine tuned.
+  // Ideally, without a modifier key rotation would happen in 45 degree snaps.
+  // With shift, 20 degree snaps.
+  // With control, 10 degree snaps.
+  // With shift and control, 5 degree snaps.
   rotationSnapAmount = $derived.by(() => {
-    if (!outlineStore.isSnappingEnabled) return null
+    if (!this.isSnappingEnabled) return null
     if (inputStore.isPressedShift && inputStore.isPressedControl) return 0.1
     if (inputStore.isPressedControl) return 0.25
     if (inputStore.isPressedShift) return 0.45
@@ -74,12 +50,64 @@ class OutlineStore {
   })
 
   scaleSnapAmount = $derived.by(() => {
-    if (!outlineStore.isSnappingEnabled) return null
+    if (!this.isSnappingEnabled) return null
     if (inputStore.isPressedShift && inputStore.isPressedControl) return 0.01
     if (inputStore.isPressedControl) return 0.05
     if (inputStore.isPressedShift) return 0.1
     return 0.2
   })
+
+  mergeSelection() {
+    const selectedItems = this.getSelectedItems()
+    const objectsToMerge = selectedItems.filter((item) => item.type === 'object') as ObjectT[]
+    if (objectsToMerge.length <= 1) return
+
+    const topmostItem = this.getTopmostItem(objectsToMerge)
+    const topmostIndex = this.items.indexOf(topmostItem)
+    const parentId = topmostItem.parentId
+
+    const geometriesToMerge = objectsToMerge.map((object) => {
+      const mesh = this.meshes[object.id]
+      const geometry = mesh.geometry.clone()
+      geometry.applyMatrix4(mesh.matrixWorld)
+      return geometry
+    })
+
+    const mergedGeometry = BufferGeometryUtils.mergeGeometries(geometriesToMerge, false)
+    mergedGeometry.computeBoundingBox()
+
+    const mergedObject = {
+      type: 'object',
+      pivotPosition: [0, 0, 0],
+      position: [0, 0, 0],
+      rotation: [0, 0, 0],
+      scale: [1, 1, 1],
+      shapeName: 'merged',
+      name: 'Merged Object',
+      id: uuid(),
+      isVisible: true,
+      isLocked: false,
+      parentId,
+      geometry: mergedGeometry
+    }
+
+    const boundingBox = new Box3().setFromObject(new Mesh(mergedGeometry))
+    const center = new Vector3()
+    boundingBox.getCenter(center)
+
+    mergedGeometry.translate(-center.x, 0, -center.z)
+    mergedObject.pivotPosition = [-center.x, 0, -center.z]
+
+    const objectIdsToRemove = objectsToMerge.map((obj) => obj.id)
+    const newItems = this.removeItemsById(objectIdsToRemove)
+    newItems.splice(topmostIndex, 0, mergedObject)
+    this.items = newItems
+    this.selectedItemIds = [mergedObject.id]
+  }
+
+  removeItemsById(ids: string[], target: OutlineItemT[] = this.items) {
+    return target.filter((item) => !ids.includes(item.id))
+  }
 
   selectAll = () => {
     const ids = this.items.map((item) => item.id)
@@ -267,13 +295,10 @@ class OutlineStore {
     const newItems = [...this.items]
     const groupIndex = newItems.indexOf(group)
     const groupParentId = group.parentId
-
     // Get all children of the group
     const children = this.getChildreByParentId(id, newItems)
-
     // Remove the group
     newItems.splice(groupIndex, 1)
-
     // Update children's parentId and insert them where the group was
     children.forEach((child, index) => {
       const updatedChild = { ...child, parentId: groupParentId }
@@ -287,17 +312,13 @@ class OutlineStore {
   // Duplicate selected items
   duplicateSelected() {
     if (this.selectedItemIds.length === 0) return
-
     const newItems = this.items.slice()
     const newSelectedIds: string[] = []
     const selectedItems = this.getSelectedItems()
 
-    console.log({ selectedItems })
-
     for (const item of selectedItems) {
       console.log('duplicating ', item.name)
       if (item.name.length > 20) break
-
       const duplicate = this.duplicateItem(item)
       newSelectedIds.push(duplicate.id)
       const itemIndex = newItems.indexOf(item)
@@ -307,7 +328,6 @@ class OutlineStore {
       if (item.type === 'group') {
         console.log('IS A GROUP')
         const children = this.getChildreByParentId(item.id, this.items)
-
         const duplicatedChildren = children.map((child) => {
           const duplicatedChild = this.duplicateItem(child)
           duplicatedChild.parentId = duplicate.id
@@ -323,7 +343,6 @@ class OutlineStore {
 
     this.items = newItems
     this.selectedItemIds = newSelectedIds
-    console.log('DONE')
   }
 
   duplicateItem(item: OutlineItemT): OutlineItemT {
@@ -333,13 +352,10 @@ class OutlineStore {
     return newItem
   }
 
-  // Delete selected items
   deleteSelected() {
     if (this.selectedItemIds.length === 0) return
-
     let newItems = [...this.items]
-
-    // First collect all items to be deleted (including children of groups)
+    // collect all items to be deleted (including children of groups)
     const itemsToDelete = new Set<string>()
 
     const addItemAndChildren = (id: string) => {
@@ -349,15 +365,12 @@ class OutlineStore {
     }
 
     this.selectedItemIds.forEach((id) => addItemAndChildren(id))
-
-    // Then filter out all items to be deleted
+    // filter out all items to be deleted
     newItems = newItems.filter((item) => !itemsToDelete.has(item.id))
-
     this.items = newItems
     this.selectedItemIds = []
   }
 
-  // Existing methods...
   selectItem(id: string) {
     this.selectedItemIds = [id]
   }
@@ -378,20 +391,7 @@ class OutlineStore {
     })
   }
 
-  toggleGroupOpen(id: string) {
-    const item = this.getItemById(id, this.items) as GroupT
-    if (item) item.isOpen = !item.isOpen
-  }
-
-  toggleItemVisible(id: string) {
-    const item = this.getItemById(id, this.items)
-    if (!item) return
-
-    item.isVisible = !item.isVisible
-    this.toggleChildrenVisibility(id, item.isVisible)
-  }
-
-  // Helper to recursively toggle visibility
+  // recursively toggle visibility
   toggleChildrenVisibility(parentId: string, isVisible: boolean) {
     const children = this.getChildreByParentId(parentId, this.items)
     children.forEach((child) => {
@@ -402,15 +402,7 @@ class OutlineStore {
     })
   }
 
-  toggleItemLocked(id: string) {
-    const item = this.getItemById(id, this.items)
-    if (!item) return
-
-    item.isLocked = !item.isLocked
-    this.toggleChildrenLocked(id, item.isLocked)
-  }
-
-  // Helper to recursively toggle locked state
+  // recursively toggle locked state
   toggleChildrenLocked(parentId: string, isLocked: boolean) {
     const children = this.getChildreByParentId(parentId, this.items)
     children.forEach((child) => {
@@ -419,11 +411,6 @@ class OutlineStore {
         this.toggleChildrenLocked(child.id, isLocked)
       }
     })
-  }
-
-  renameItem(id: string, newName: string) {
-    const item = this.getItemById(id, this.items)
-    if (item) item.name = newName
   }
 
   getChildreByParentId(id: string, target: OutlineItemT[] = this.items) {
@@ -437,20 +424,7 @@ class OutlineStore {
       return item.id === id
     }) as OutlineItemT
   }
-
-  getFirstItemByIds(ids: string[], target: OutlineItemT[] = this.items) {
-    return target.find((item) => {
-      return ids.includes(item.id)
-    })
-  }
-
-  removeItemsByIds(ids: string[], target: OutlineItemT[]) {
-    return target.filter((item) => {
-      return !ids.includes(item.id)
-    })
-  }
 }
 
 const outlineStore = new OutlineStore()
 export default outlineStore
-globalThis.outlineStore = outlineStore
